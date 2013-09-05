@@ -3,11 +3,14 @@
 import subprocess, sys, json
 
 if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print 'Incorrect number of arguments\npython get-status USER'
     process = subprocess.Popen(['remctl', 'sql.mit.edu', 'account', 'is-auth', sys.argv[1]], stdout=subprocess.PIPE)
     output = process.communicate()
     parsed = json.loads(output[0])
     if parsed['status'] != 0:
-	print 'Error; not authorized to check locker'
+	print >> sys.stderr, 'Error; not authorized to check locker'
+        sys.exit(1)
     process = subprocess.Popen(['remctl', 'sql.mit.edu', 'profile', 'get', sys.argv[1]], stdout=subprocess.PIPE)
     output = process.communicate()
     parsed = json.loads(output[0])

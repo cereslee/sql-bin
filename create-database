@@ -1,12 +1,18 @@
 #!/usr/bin/python
 
-import subprocess, sys, json
+import json
+import subprocess
+import sys
 
 if __name__ == '__main__':
+   if len(sys.argv) != 3:
+      print >> sys.stderr, 'Incorrect number of arguments\npython create-database LOCKER DB_NAME'
+      sys.exit(1)
    process =  subprocess.Popen(['remctl', 'sql.mit.edu', 'database', 'create', sys.argv[1], sys.argv[2]], stdout=subprocess.PIPE)
    output = process.communicate()
    parsed = json.loads(output[0])
    if parsed['status'] != 0:
-      print "Error!  Status was %d.  %s." % (parsed['status'], parsed['error'],)
+      print >> sys.stderr, 'Error!  Status was %d.  %s.' % (parsed['status'], parsed['error'],)
+      sys.exit(1)
    else:
-      print "Success!  Created %s." %(parsed['db_name'])
+      print 'Success!  Created %s.' %(parsed['db_name'])
