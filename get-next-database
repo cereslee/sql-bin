@@ -1,10 +1,10 @@
-#!/Usr/bin/python
+#!/usr/bin/python
 
 import subprocess, sys, json
 
 if __name__ == '__main__':
    if len(sys.argv) != 2:
-      print >> sys.stderr, 'Incorrect number of arguments\npython get-next-database LOCKER'
+      print >> sys.stderr, 'Incorrect number of arguments\nget-next-database LOCKER'
       sys.exit(1)
    locker = sys.argv[1]
    process =  subprocess.Popen(['remctl', 'sql.mit.edu', 'database', 'list', locker],

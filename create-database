@@ -6,7 +6,7 @@ import sys
 
 if __name__ == '__main__':
    if len(sys.argv) != 3:
-      print >> sys.stderr, 'Incorrect number of arguments\npython create-database LOCKER DB_NAME'
+      print >> sys.stderr, 'Incorrect number of arguments\ncreate-database LOCKER DB_NAME'
       sys.exit(1)
    process =  subprocess.Popen(['remctl', 'sql.mit.edu', 'database', 'create', sys.argv[1], sys.argv[2]], stdout=subprocess.PIPE)
    output = process.communicate()
