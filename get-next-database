@@ -1,0 +1,18 @@
+#!/usr/bin/python
+
+import subprocess, sys, json
+
+if __name__ == '__main__':
+   process =  subprocess.Popen(['remctl', 'sql.mit.edu', 'database', 'list', sys.argv[1]], stdout=subprocess.PIPE)
+   output = process.communicate()
+   parsed = json.loads(output[0])
+   dbs = parsed['databases']
+   if dbs == []:
+      print sys.argv[1]
+   db_names = [db['name'] for db in dbs]
+   counter = 1
+   current_db = '%s%d' % (sys.argv[1],counter,) 
+   while current_db in db_names:
+      counter += 1
+      current_db = '%s%d' % (sys.argv[1],counter,)
+   print current_db
