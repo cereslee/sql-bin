@@ -1,0 +1,126 @@
+#!/usr/bin/env python
+#
+# sql-bin, the sql.mit.edu legacy-to-remctl drop-in replacement locker
+# script. This script implements the functionality of the legacy
+# tools:
+# * create-database
+# * drop-database
+# * get-next-database
+# * get-password (secretly, sign-me-up-for-sql.mit.edu)
+# * get-status
+# But does not re-implement:
+# * save-password
+# * test-password
+
+import ConfigParser
+import functools
+import json
+import os
+import string
+import subprocess
+import sys
+import traceback
+
+EXIT_NO_ERROR = 0
+EXIT_GENERIC_ERROR = 1
+EXIT_EXCEPTION = 255
+
+HOST = 'sql.mit.edu'
+USER = os.getenv('USER');
+HOME = '/mit/%s' % (USER,)
+CONFIG = '%s/.sql/my.cnf' % (HOME,)
+
+class NotifyUserError(Exception):
+    pass
+
+def extract(args):
+    if len(args) < 1:
+        raise Exception('Missing arguments')
+    return (args[0], args[1:])
+
+def remctl(args):
+    process = subprocess.Popen(['remctl', HOST] + args, stdout=subprocess.PIPE)
+    stdout, _ = process.communicate()
+    parsed = json.loads(stdout)
+    if parsed['status'] != 0:
+        raise NotifyUserError(parsed['error'])
+    return parsed
+
+def databaseOperation(mode, argv):
+    ldb, _ = extract(argv)
+    locker, dbname = string.split(ldb, '+', 1)
+    parsed = remctl(['database', mode, locker, dbname])
+    return EXIT_NO_ERROR
+
+createDatabase = functools.partial(databaseOperation, 'create')
+dropDatabase = functools.partial(databaseOperation, 'drop')
+listDatabase = functools.partial(databaseOperation, 'list')
+
+def getNextDatabase(argv):
+    ldb, _ = extract(argv)
+    locker, dbname = string.split(ldb, '+', 1)
+    parsed = listDatabase([ldb])
+    db_names = [db['name'] for db in parsed['databases']]
+    counter = 0
+    while True:
+        current_db = getDBName(locker, dbname, counter)
+        if current_db not in db_names:
+            break
+        counter += 1
+    print current_db
+    return EXIT_NO_ERROR
+
+def signUp(user=None):
+    if not user:
+        user = USER
+    return remctl(['account', 'create', user])
+
+def getPassword(argv):
+    if not os.path.exists(CONFIG):
+        parsed = signUp()
+        with open(CONFIG, 'w') as config:
+            cfg_data = "[client]\nhost=%s\nuser=%s\npassword=%s\n" % (
+                HOST, USER, parsed['password'])
+            config.write(cfg_data)
+
+    mycnf = ConfigParser.RawConfigParser()
+    mycnf.read(CONFIG)
+    print "%s\t%s\t%s" % tuple([mycnf.get('client', i) for i in
+                                ('host', 'user', 'password')])
+    return EXIT_NO_ERROR
+
+def getStatus(argv):
+    account = USER
+    if argv:
+        account, _ = extract(argv)
+    remctl(['account', 'is-auth', account])
+    parsed = remctl(['profile', 'get', account])
+    status = int(parsed['status'])
+    print status
+    return status
+
+def main():
+    ops = {
+        'create-database': createDatabase,
+        'drop-database': dropDatabase,
+        'get-next-database': getNextDatabase,
+        'get-password': getPassword,
+        'get-status': getStatus,
+        }
+    argv = sys.argv
+    argc = len(argv)
+    mode, argv = extract(argv)
+    mode = os.path.basename(mode)
+    if mode not in ops:
+        raise Exception('Invalid mode "%s" specified' % (mode,))
+    return ops[mode](argv)
+
+if __name__ == '__main__':
+    try:
+        sys.exit(main())
+    except NotifyUserError as nue:
+        print >>sys.stderr, '%s: Error: %s' % (sys.argv[0], nue.message)
+        sys.exit(EXIT_GENERIC_ERROR)
+    except Exception as e:
+        traceback.print_exc()
+        sys.exit(EXIT_EXCEPTION)
