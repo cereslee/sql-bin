@@ -1,23 +1,31 @@
 #!/usr/bin/python
 
-import subprocess, sys, json
+import json
+import string
+import subprocess
+import sys
+
+def getDBName(locker, database, counter):
+   template = '%s+%s' % (locker, database)
+   if counter:
+      template += str(counter)
+   return template
 
 if __name__ == '__main__':
    if len(sys.argv) != 2:
-      print >> sys.stderr, 'Incorrect number of arguments\nget-next-database LOCKER'
+      print >>sys.stderr, 'Incorrect number of arguments\nget-next-database LOCKER+DB_NAME'
       sys.exit(1)
-   locker = sys.argv[1]
+   _, ldb = sys.argv
+   locker, dbname = string.split(ldb, '+', 1)
    process =  subprocess.Popen(['remctl', 'sql.mit.edu', 'database', 'list', locker],
                                stdout=subprocess.PIPE)
-   output = process.communicate()
-   parsed = json.loads(output[0])
-   dbs = parsed['databases']
-   if dbs == []:
-      print sys.argv[1]
-   db_names = [db['name'] for db in dbs]
-   counter = 1
-   current_db = '%s%d' % (locker, counter,) 
-   while current_db in db_names:
+   stdout, _ = process.communicate()
+   parsed = json.loads(stdout)
+   db_names = [db['name'] for db in parsed['databases']]
+   counter = 0
+   while True:
+      current_db = getDBName(locker, dbname, counter)
+      if current_db not in db_names:
+         break
       counter += 1
-      current_db = '%s%d' % (locker, counter,)
    print current_db
